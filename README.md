@@ -1,1 +1,2 @@
 # EDA with Loan Data
+Analysing loan data and plotting many plots to measure how different population segments do with returning loans. Used various R functions to subset the data and different plotting techniques to visualise multi dimensional data. All done in R markdown. 

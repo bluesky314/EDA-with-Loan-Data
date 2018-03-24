@@ -1,0 +1,463 @@
+#Analysing Loan Data by Prosper 
+
+========================================================
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+library(ggplot2)
+library(dplyr)
+
+library(tidyr)
+
+library(corrplot)
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+setwd('~/Downloads')
+loan<-read.csv('prosperLoanData.csv')
+```
+
+**Loan Data From Prosper**
+
+This data set contains 113,937 loans with 81 variables on each loan, including loan amount, borrower rate (or interest rate), current loan status, borrower income, borrower employment status, borrower credit history, and the latest payment information. There are vast number of transactions done from all around the United States although some variable fields are only available after a certain date and many fields are empty. Despite this we have plenty of data and factors to analyse.
+
+# Univariate Plots Section
+
+
+First we shall explore the variety in the loan amounts to get a better understanding of the scale of operations and the consumers.
+
+```{r cache = FALSE,echo=FALSE, Univariate_Plots}
+summary(loan$LoanOriginalAmount)
+qplot(data=loan,x=loan$LoanOriginalAmount,binwidth=1250)+
+  scale_x_continuous(breaks = seq(0,40000,2500 ))
+qplot(data=loan,x=loan$LoanOriginalAmount,binwidth=100)+
+  scale_x_continuous(breaks = seq(0,40000,2500 ))
+
+```
+
+From the first plot we observe that the maximum loans take place between 2500 and 5000$.There is a constant decline in the loans counts as we move forward. We also see that people like to borrow in nice round numbers like 5000,10000 and 15000. The loans are mainly small loans with very few large loans.
+
+
+
+Now let us explore the amounts of loans given to each state.
+
+```{r echo=FALSE, Univariate_Plots1}
+qplot(data=loan,x=loan$BorrowerState)+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+qplot(data=loan,x=loan$BorrowerState)+
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  facet_wrap(~loan$IncomeRange)
+```
+
+
+Alot of loans are taken from CA,FL,NY and TX, the larger and more commerical states while more smaller states have lesser amounts. We see that CA is more than double of its next closest(TX). Let us see how the data is split by different income categories. We see that CA by far excedds the others in every income category as well. The income data seems to be proportionally distributed among the states. 
+
+
+Lets take a look at the occupation distributions
+```{r echo=FALSE, Univariate_Plots9}
+qplot(data=loan,x=loan$Occupation,stat="count") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+#+scale_x_continuous(breaks=seq(0,21,1))  
+
+#only category 1
+#lc<-subset(loan,ListingCategory..numeric.=='1')
+#qplot(data=lc,x=lc$LoanStatus)+
+ # theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Here we see that  a high number are listed as 'Other' while the second largest is 'Professional'. From the bar plot we can see that there are many occupations that have much fewer data points than the slightly taller plots indicating that we do not have an evenly distributed sample of all the occupations.This should be taken into account when judging an occupation based on its past performance.
+
+
+Let us explore the Listing Categorys to study why people take the loans to get a better sense of the consumers. The second plot explores the loan status for the highest listing category.
+
+
+```{r echo=FALSE, Univariate_Plots2}
+qplot(data=loan,x=loan$ListingCategory..numeric.,binwidth = 1)+scale_x_continuous(breaks=seq(0,21,1))  
+
+#only category 1
+lc<-subset(loan,ListingCategory..numeric.=='1')
+qplot(data=lc,x=lc$LoanStatus)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+We see that by far the most reasons to take loans is debt consolidation(1). Alot of data is unavailable(7). Secondly for debt consolidation we most of those are actually sucessful loans while a much larger majority are still in progress.
+
+
+Let us explore loans by Income Range. The second plot explore the loans taken by people in the highest income bracket.
+
+```{r echo=FALSE, Univariate_Plots3}
+#making factors for proper arragement
+loan$IncomeRange <- factor(loan$IncomeRange,
+          levels = c("Not displayed", "Not employed", "$0", "$1-24,999",
+        "$25,000-49,999", "$50,000-74,999", "$75,000-99,999","$100,000+"))
+
+qplot(data=loan,x=loan$IncomeRange)+theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+summary(subset(loan,loan$IncomeRange=="$100,000+")$LoanOriginalAmount)
+qplot(data=subset(loan,loan$IncomeRange=="$100,000+"),LoanOriginalAmount)+
+  ggtitle("Loan Amount of Incomes of $100,00+")+theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggplot(loan)+geom_bar(aes(x=loan$IncomeRange),stat="count") +theme(axis.text.x = element_text(angle = 90, hjust = 1))
+#geom_smooth(aes(x=fbag3$ProsperRating..numeric.,y=fbag3$ratio))
+```
+
+We see that a majority of loans are for Incomes greater that 25000. Some loans are given to people with no and low income but they may be done so at a greater intrest rate. From the second plot we see that suprisingly even people's whose income exceeds 100,000 take plenty of small loans with the median at around only 12,000$. This may be beacuse they are offered a low intrest rate. 
+
+#Summary
+
+This data set contains 113,937 loans with 81 variables on each loan, including loan amount, borrower rate (or interest rate), current loan status, borrower income, borrower employment status, borrower credit history, and the latest payment information along with many others. There is quite alot of missing data and the data is varied with there being int,num and factor types.
+
+Some observations:
+Most Loan Statues are Current
+Some varibles like Credit Grade and Group Key have very less >data
+Prosper Rating has very few AAs
+Most of the Employment Statues are Employed
+The difference between the upper and lower credit score is always 19
+
+We were interested in the number of Loan Amounts, Listing Category,Income Range and States. We are trying to find good predictors of loan outcomes. I was trying to see where the most loans come from and get a general idea of the customers.Occupation, Prosper Rating, Employment Status and Current Delinquencies are all likely to be predictors of loan sucess. 
+
+The data was already tidy. The loan amounts had jumps at round numbers. The different Incomes was distributed proportionally by each state. A suprising spike at Debt Consolidation for listings. Suprisingly people at even high income ranges make mostly small loans. 
+
+
+# Bivariate Plots Section
+
+
+We exapline how the prosper rating does with the ratio of completed to failed loans. 
+
+```{r echo=FALSE, Bivariate_Plots}
+#Grouping data with Prosper Ratings and summarising. From now on the completed loans are the sum of the completed amounts and failed ones are the sum of defaulted and chargedoff. This will be used throughout this project
+fbag3<- loan %>%
+  filter(!is.na(ProsperRating..numeric.)) %>%
+  group_by(ProsperRating..numeric.) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),n=n()) 
+fbag3$ratio<-fbag3$Completed/fbag3$Failed 
+
+ggplot(fbag3)+geom_point(aes(x=fbag3$ProsperRating..numeric.,y=fbag3$ratio),
+                         stat="identity")+
+  scale_y_continuous(breaks=seq(0,100,10),limits =c(0,21))+scale_x_continuous(breaks=seq(0,8,1))+
+  geom_smooth(aes(x=fbag3$ProsperRating..numeric.,y=fbag3$ratio))
+ 
+```
+
+ 
+We see a clear positive trend between the Proper rating and the ratio. The difference betweeen the first few ratings is not so high while the higher ratings are more varied. A rating of 7 is significantly between than a 6. For 1 failure there are 20 sucesses for 7! 1-2-3-4 are different but only marginally. However this is significant depending on the loan amounts.
+
+
+
+We exapline how different occupations do with the ratio of completed to failed loans. 
+
+```{r echo=FALSE, Bivariate_Plots1}
+fbag<- loan %>% 
+  filter(!is.na(Occupation)) %>%
+  group_by(Occupation) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),n=n()) 
+fbag$ratio<-fbag$Completed/fbag$Failed 
+
+
+ggplot(data=fbag,aes(fill=fbag$Occupation,
+                     x=reorder(fbag$Occupation,-fbag$ratio),y=fbag$ratio)) +geom_bar(stat="identity")+
+    scale_y_continuous(limits = c(0, 14))+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))+guides(fill = FALSE)
+ 
+```
+
+
+We see that some occupations do very well and there is a sharp increase from 5.0 to 7.0.  Judges have never defaulted on a loan and we see interestingly that the scale moves from low skill to high skill jobs.
+
+
+
+We continue our examination of before and see how the different State do with the ratio of completed to failed loans. 
+
+```{r echo=FALSE, Bivariate_Plots2}
+fbagS<- loan %>%
+  filter(!is.na(BorrowerState)) %>%
+  group_by(BorrowerState) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),
+            mean=mean(LoanOriginalAmount),
+            sum=sum(LoanOriginalAmount),n=n()) 
+fbagS$ratio<-fbagS$Completed/fbagS$Failed 
+
+
+ggplot(data=fbagS,aes(fill=fbagS$BorrowerState,
+        x=reorder(fbagS$BorrowerState,-fbagS$ratio),y=fbagS$ratio)) +geom_bar(stat="identity")+
+  scale_y_continuous(limits = c(0, 5))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+guides(fill = FALSE)
+
+ 
+```
+
+
+We see some states preform significantly better than others with DC being more than 3 times safer than AL! However DC has much fewer loans taken than AL(almost half) from our initial examination of states.We see that CA does mediocre on this with it only being around in the center at 2.2. Even TX and FL do just around average. 
+
+
+
+We examine how the Employment Status duration compares with the ratio of completed to failed loans. 
+
+```{r echo=FALSE, Bivariate_Plots3}
+fbagS<- loan %>%
+  filter(!is.na(EmploymentStatusDuration)) %>%
+  group_by(EmploymentStatusDuration) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),
+            mean=mean(LoanOriginalAmount),
+            sum=sum(LoanOriginalAmount),n=n()) 
+
+fbagS$ratio<-fbagS$Completed*100/(fbagS$Completed + fbagS$Failed)
+
+
+ggplot(fbagS)+geom_point(aes(x=fbagS$EmploymentStatusDuration,
+                             y=fbagS$ratio,alpha=1/50),stat="identity")+
+  scale_x_continuous(breaks=seq(0,900,100))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+geom_smooth(aes(x=fbagS$EmploymentStatusDuration,y=fbagS$ratio))
+
+
+ 
+```
+
+
+We see first than people employed for more than 200 months much more likely to pay off loans with some durations having pefect scores. But after 400 months we see the smooth line go downwards. This is counter-intuitive as we would expect longer job stability with better loan sucess rate. 
+
+
+
+
+
+To better understand this we see Employement Status Duration vs Income
+```{r echo=FALSE, b3}
+loan$dis<-cut(loan$EmploymentStatusDuration,seq(0,800,100))
+fbagS<- loan %>%
+  filter(!is.na(EmploymentStatusDuration)) %>%
+  group_by(IncomeRange,EmploymentStatusDuration,dis,LoanStatus) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),
+            mean=mean(LoanOriginalAmount),
+            sum=sum(LoanOriginalAmount),n=n()) 
+
+ggplot(subset(fbagS,LoanStatus=='Completed' | LoanStatus=='Defaulted' | LoanStatus=='Chargedoff'))+
+  geom_point(aes(x=EmploymentStatusDuration, 
+                 y=IncomeRange),alpha=1/10,position = position_jitter(h=.1)) 
+```
+
+Here we see that even thought most of those emplyed for more than 500 months all have an income bracket above $24,999 that category does not fair very well in our previous assesment.Most of the loan takers were employed from 0-300 months. 
+
+
+#Summary
+We saw a clear positive trend between the Proper rating and the ratio. This means the prosper rating is a clear predictor of loan sucess. The smooth curve followed an exponential curve getting much higher for values 6 to 7. We see that some occupations do very well and there is a gradual increase as we keep going from low to high skilled occupations. For employement durations, we saw first than people employed for more than 200 months much more likely to pay off loans with some durations having pefect scores. But after 400 months we see the smooth line go downwards. This is counter-intuitive as we would expect longer job stability with better loan sucess rate. After plotting Income range vs Duration we saw that more longer occupations pay above 49,999$ yet those loans have less sucess rates. This is something that should be looked into, there may be many unverified incomes here. By far the strongest relationship was with the prosper data and then skill level of occupation.
+
+
+# Multivariate Plots Section
+
+```{r echo=FALSE, Multivariate_Plots0}
+res <- cor(loan[,c(5,9,16,21,50,64)],use='complete.obs')
+round(res,2)
+corrplot(res, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+```
+
+We see there is a strong negative corelation beteen Borrower Rate and Prosper Score(-0.65 ) and Borrower rate and Loan Original(-0.41) Amount meaning that higher prosper scores are given low intrest rates due to lower risk and higher loan amounts also the same. According to our previous analysis we saw the higher prosper rates tend to borrow larger amounts hence that attributed here. We also see that Loan Amounts are positively correlated to Prosper Scores, Monthly income and the duration of the loan. This gives us a strong incentive to explore Loan Amounts and Prosper score. 
+
+
+We explore Prosper rating futhure as we found it to be a good indictor of sucessful loans. Let us see the total loan amounts taken b y each rating. Plotting the ratio with Prosper Rating with point size as sum of total loans taken.
+
+```{r echo=FALSE, Multivariate_Plots}
+fbag4<- loan %>%
+  filter(!is.na(ProsperRating..numeric.)) %>%
+  group_by(ProsperRating..numeric.) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),
+            mean=mean(LoanOriginalAmount),
+            sum=sum(LoanOriginalAmount),n=n()) 
+fbag4$ratio<-fbag4$Completed/fbag4$Failed 
+fbagS$ratio<-fbagS$Completed*100/(fbagS$Completed + fbagS$Failed)
+
+ggplot(fbag4)+geom_point(aes(x=fbag4$ProsperRating..numeric.,
+                             y=fbag4$ratio,size=sum,color=sum),stat="identity")+
+  scale_y_continuous(limits = c(0, 21))+
+  scale_x_continuous(breaks = seq(0, 8,1))
+
+```
+
+This plot tells us that Prosper Ratings 4,5 and 6 respectively have maximum amount taken out in loans. However we see that rating 3 has more in loans than 7 and ratings 1 and 2 combined also exceed those of 7. 
+
+A look at the means and the median for the ratings:
+
+```{r echo=FALSE, Univariate_Plots8}
+
+print(fbag4$mean)
+median(fbag4$sum)
+```
+
+We see that the median is on the 4th prosper ratings meaning half the loans are on the lower end of the rating spectrum, which the bank may want to reconsider. Higher ratings tend to take larger loans and have much better sucess rates especailly 7.
+
+Now we investigate Occupation with ratio and total sum of loans taken.
+
+```{r echo=FALSE, b4}
+fbag<- loan %>% 
+  filter(!is.na(Occupation)) %>%
+  group_by(Occupation) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),
+            sum=sum(LoanOriginalAmount),n=n()) 
+fbag$ratio<-fbag$Completed/fbag$Failed 
+
+
+ggplot(data=fbag,aes(size=sum,color=sum,
+                     x=reorder(fbag$Occupation,-fbag$ratio),y=fbag$ratio)) +geom_point(stat="identity")+
+  scale_y_continuous(limits = c(0, 14))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+guides(fill = FALSE)
+```
+
+We see that Other and Professional are much larger borrowers that the rest so we subset our data to get a better view and so that it contains significant loan amounts(greater than 1.5e+07).
+
+
+```{r echo=FALSE, b5}
+f<-subset(fbag,Occupation !='Other' & Occupation !='Professional')
+ggplot(data=subset(f,sum>1.5e+07),
+       aes(size=sum,color=sum,x=reorder(Occupation,-ratio),y=ratio)) +geom_point(stat="identity")+
+  scale_y_continuous(limits = c(0, 8),breaks=seq(0,7,.5))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  coord_flip()+guides(fill = FALSE)
+```
+
+We see that there are many occupations below the 2.0 range with loans larger than 1.5e+07. This money could be invested elsewhere to get a better return. We see than excetives borrow alot and analysts, like us, are safer loans. Once again we see the distinction between more skilled and less skilled labor. 
+
+
+
+We see how lender rate does with loan amount seperated by loan status with color of prosper rating.
+```{r echo=FALSE, Multivariate_Plots6}
+
+de=subset(loan,LoanStatus=='Completed'|
+LoanStatus=='Defaulted'|LoanStatus=='Current'|LoanStatus=='Past Due')
+qplot(data=de,x=de$LoanOriginalAmount,
+      y=de$LenderYield,alpha=1/10)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  facet_wrap(~de$LoanStatus)+
+  geom_point(aes(color=de$ProsperRating..Alpha.))
+
+```
+
+Here we see that that there are very few loans above 25000$ in the defaulted category. We clearly see that AA gets the lowest yield as the form the lowest layer but we see there are many red unrated loans that also received a very low rate infact these loans received a even lower rate then the AA loans which is suprising. We see a unrated loan in the Current loans at 25000$ which is approximately 5-6% lower the next lowest loans. Some of these unrated loans are at a negative yield which may have happened during tehe financial crisis. 
+
+
+
+
+
+For the prosper data we saw that the median is on the 4th prosper ratings meaning half the loans are on the lower end of the rating spectrum, this means the bank is giving out many loans with lower scores that have low return rates. It may want to use those monetory allocations elsewhere. With the occupation data we got exactly what we expected with low skilled jobs having a lower ratio. I was amused by how we can relate this to the current education and economic conditions. More skilled workers generally borrow more possibly due to lower yield rates.  
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+
+We examine how the State does with the ratio of completed to failed loans. 
+
+```{r echo=FALSE, Plt_Plots44}
+
+fbag4<- loan %>%
+  filter(!is.na(ProsperRating..numeric.)) %>%
+  group_by(ProsperRating..numeric.) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),
+            mean=mean(LoanOriginalAmount),
+            sum=sum(LoanOriginalAmount),n=n()) 
+fbag4$ratio<-fbag4$Completed/fbag4$Failed 
+fbagS$ratio<-fbagS$Completed*100/(fbagS$Completed + fbagS$Failed)
+#we keep size and color in ggplot for the points and both combined give a more clear picture of the third variable - sums
+ggplot(fbag4)+geom_point(aes(x=fbag4$ProsperRating..numeric.,
+                          y=fbag4$ratio,color=sum,size=sum),stat="identity")+guides(fill=FALSE)+
+  scale_y_continuous(limits = c(0, 21))+
+  scale_x_continuous(breaks = seq(0, 8,1))+
+  ggtitle("Ratio by Prosper Rating") + 
+  xlab('Prosper Rating')+
+  ylab('Ratio')+
+  labs(color = "Count[USD]")
+
+```
+ 
+
+
+I choose this plot as it shows us very valuable infomation about which loans are good and where the loan giver should focus its resources. We found proser rating to be the strongest predictor of loan success therefore it had to make the final plot section. We see that there is a big gap in the total amounts borrower by 3 and 4. Larger loans are carefully given to those of lower ratings possibly but unfortunately those with ratings of 7 also do not borrow as much as we would like. This is because even though they receive lower intrest rates there are much fewer 7 rated individuals than the rest while those rated 1 or 2 may be discouraged from borrowing.The combination of size and color of the points gives us a clearer picture than just either would. 
+
+
+### Plot Two
+
+```{r echo=FALSE,PLt3}
+fbagS<- loan %>%
+  filter(!is.na(EmploymentStatusDuration)) %>%
+  group_by(EmploymentStatusDuration) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),
+            mean=mean(LoanOriginalAmount),
+            sum=sum(LoanOriginalAmount),n=n()) 
+
+fbagS$ratio<-fbagS$Completed*100/(fbagS$Completed + fbagS$Failed)
+
+
+ggplot(fbagS)+
+  geom_point(aes(x=fbagS$EmploymentStatusDuration,y=fbagS$ratio,alpha=1/50),
+             stat="identity")+
+  scale_x_continuous(breaks=seq(0,900,100))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+geom_smooth(aes(x=fbagS$EmploymentStatusDuration,y=fbagS$ratio))+
+  ggtitle("Ratio by Employement Status Duration") + 
+  xlab('Employement Status Duration(months)')+
+  ylab('Ratio')
+
+
+ 
+```
+
+I choose this plot as it is counter-intuitive to how we expect loan safety to relate to employement duration.The mean ratio reduces after the bump at 400 months and 500-800 months all perform worse than 0-100 months! This may be that those are minimum wage low skilled jobs that people have had for a long time and cant get hired anywhere else. Additionally we see the the points are much more scattered around the center of the graph meaning the variance at these points is high and loans get more harder to predict.
+
+### Plot Three
+```{r echo=FALSE, Plot_Final}
+fbag<- loan %>% 
+  filter(!is.na(Occupation)) %>%
+  group_by(Occupation) %>%
+  summarise(Completed=sum(LoanStatus=='Completed'),
+            Failed=sum(LoanStatus=='Defaulted')+
+              sum(LoanStatus=='Chargedoff'),
+            sum=sum(LoanOriginalAmount),n=n()) 
+fbag$ratio<-fbag$Completed/fbag$Failed 
+#we keep size and color in ggplot for the points and both combined give a more clear picture of the third variable - sums
+f<-subset(fbag,Occupation !='Other' & Occupation !='Professional')
+ggplot(data=subset(f,sum>1.5e+07),aes(size=sum,color=sum,
+                                      x=reorder(Occupation,-ratio),y=ratio)) +geom_point(stat="identity")+
+  scale_y_continuous(limits = c(0, 8),breaks=seq(0,7,.5))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  coord_flip()+guides(fill = FALSE)+
+  ggtitle("Ratio by Occupation with total loan amounts larger than 1.5e+07") +
+  xlab('Occupation')+
+  ylab('Ratio')+labs(color = "Count[USD]")
+
+```
+
+
+I found this plot very interesting as it tell us so much about not only loan data but also relates to the current state of our economic and education system. We see that less skilled workers like Construction workers,Clerical and Sales are in requirement of money but have a hard time paying off loans while more skilled workers take on average larger loans but those loans are more sucessfull. The reasons these two categories take loans is probably very different, the latter might be taking these loans for self driven ventures or non-necessity goods, the former would be requiring the money for more basic needs or funding their child's education. 
+
+
+#Reflection
+ 
+
+Initially I felt the data was very bland and I had very few questions to ask but as I put what i learned into practice and played around with the different techniques we learned I started noticing slightly unusual and interesting things. When I got into a paticular analysis I found many further questions popping up in my head. I found it especially intereting when I could relate my findings or the data to larger economic and socioeconomic factors. I was amused by how the loan data from one source can given a powerful depiction of the current state of many cities, occupations and lifestyles of consumers indirectly. I also found the data to be lacking sometimes and really wanted more information like gender,ethinicty and number of children so make more inferences. I have realized how much knowledge can be gained from a good dataset that was prepared for a narrower purpose. I also found the corplot plot and facility in R to be very very useful and informative for future datasets. It gives a powerful way to quickly see corelations and which variables should be studied. 
+
+I found where the bank should focus its resources more, for example which occupations and states, and where it maybe needs more awareness towards paticular consumers. The bank could also offer special plans based on some factors like occupation which has historically not been done. 
+
+
+I had some challenges with dealing with the size of the data set as it was too large to just scroll through so I had to rely on summary data and plot alot to get a sense of the data. I was definately overconfident in how I knew the code just after watching the lectures and this practice helped me know the importance of the small things in the code I had'nt noticed before. Also at first I didnt know how to handle errors but now I have a must better sense of what to do with them. 
+
+
+Additional work could be to build a statistical model from all the corelations we have found to predict outcomes of a loan or research could also be done to corelate our data to government statistics and economic conditions. Maybe this data along with other sources can make be used as a predictor for the GDP, stock market and economic growth of a state. 
